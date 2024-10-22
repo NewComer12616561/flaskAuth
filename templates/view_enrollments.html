@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Enrollments</title>
+</head>
+<body>
+    <h1>Enrollments</h1>
+    {% for class in classes %}
+        <h2>{{ class.name }}</h2>
+        <ul>
+            {% for enrollment in class.students %}
+                <li>
+                    Student ID: {{ enrollment.student_id }} - Status: {{ enrollment.status }}
+                    {% if enrollment.status == 'pending' %}
+                        <a href="{{ url_for('approve_enrollment', enrollment_id=enrollment.id) }}">Approve</a>
+                        <a href="{{ url_for('deny_enrollment', enrollment_id=enrollment.id) }}">Deny</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+    <a href="/teacher">Back to Dashboard</a>
+</body>
+</html>

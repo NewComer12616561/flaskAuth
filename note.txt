@@ -1,0 +1,16 @@
+admin approve teacher
+teacher approve student
+
+denied teacher can still be login -fix
+can't view all teacher -fix
+can't approve teacher as admin -fix
+mess up in approve/deny, now automatically approve teacher -fix 
+
+Loggin in as admin wouldn't auto redirect to admin page
+Loggin in as teacher wouldn't auto redirect to admin page(what would first page be like ?) 
+teacher dashboard with some link to redirect to create new class, allow student into class ? 
+
+Enroll in not working as intended ->  clicking on said button in teacher page(same with student) would redirect to dashboard
+Whenever teacher done create class, would redirect to dashboard instead of classes route
+classes page route from teacher would show enroll button for each class created by teacher->
+should replace enroll button with view and inside said page would have list of all student enroll ? 

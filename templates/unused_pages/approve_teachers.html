@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Approve Teachers</title>
+</head>
+<body>
+    <h1>Pending Teacher Registrations</h1>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    <ul>
+        {% for teacher in pending_teachers %}
+            <li>
+                {{ teacher.username }} 
+                <a href="{{ url_for('approve_teacher', user_id=teacher.id) }}">Approve</a> | 
+                <a href="{{ url_for('deny_teacher', user_id=teacher.id) }}">Deny</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="/logout">Logout</a>
+</body>
+</html>

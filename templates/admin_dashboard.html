@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+
+    <h2>All Users</h2>
+    <ul>
+        {% for user in all_users %}
+            <li>{{ user.username }} - Role: {{ user.role }} - Status: {{ user.status }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Pending Teachers</h2>
+    <ul>
+        {% for teacher in pending_teachers %}
+            <li>
+                {{ teacher.username }} 
+                <a href="{{ url_for('approve_teacher', user_id=teacher.id) }}">Approve</a> | 
+                <a href="{{ url_for('deny_teacher', user_id=teacher.id) }}">Deny</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Approved Teachers</h2>
+    <ul>
+        {% for teacher in approved_teachers %}
+            <li>{{ teacher.username }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Approved Students</h2>
+    <ul>
+        {% for student in approved_students %}
+            <li>{{ student.username }}</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/logout">Logout</a>
+</body>
+</html>
