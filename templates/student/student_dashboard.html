@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mt-4">
+           
+            <h1>Welcome to the Student Dashboard, {{ current_user.username }}!</h1>
+             <!-- Logout Form -->
+             <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm">Logout</button>
+            </form>
+        </div>
+
+        <h2>Available Classes</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Class Name</th>
+                    <th>Teacher</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for class in available_classes %}
+                <tr>
+                    <td>{{ class.name }}</td>
+                    <td>
+                        {% if class.teacher %}
+                            {{ class.teacher.username }}  <!-- Assuming 'username' is the field for the teacher's name -->
+                        {% else %}
+                            No teacher assigned
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="{{ url_for('enroll_in_class', class_id=class.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-primary btn-sm" 
+                                {% if class.id in pending_class_ids %} disabled {% endif %}>
+                                {% if class.id in pending_class_ids %} Enrolled (Pending) {% else %} Enroll {% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Approved Classes</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Class Name</th>
+                    <th>Teacher</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for class in approved_classes %}
+                <tr>
+                    <td>{{ class.name }}</td>
+                    <td>{{ class.teacher.name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+       
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

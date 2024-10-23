@@ -14,3 +14,6 @@ Enroll in not working as intended ->  clicking on said button in teacher page(sa
 Whenever teacher done create class, would redirect to dashboard instead of classes route
 classes page route from teacher would show enroll button for each class created by teacher->
 should replace enroll button with view and inside said page would have list of all student enroll ? 
+
+what's done today: create dashboard for student, teacher
+add UI for teacher, student

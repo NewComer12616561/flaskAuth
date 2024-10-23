@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mt-4">
+           
+            <h1>Welcome to the Teacher Dashboard, {{ current_user.username }}!</h1>
+             <!-- Logout Form -->
+             <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm">Logout</button>
+            </form>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Create a New Class</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('create_class') }}" method="POST">
+                    <div class="form-group">
+                        <label for="class_name">Class Name:</label>
+                        <input type="text" id="class_name" name="class_name" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Class</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Your Classes</h2>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for class in classes %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ class.name }} 
+                            <a href="{{ url_for('view_enrollments', class_id=class.id) }}" class="btn btn-info btn-sm">View Enrollments</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+      
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -10,6 +10,7 @@ app.secret_key = 'your_secret_key'  # Change this to a random secret key
 
 # Configure the SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database
@@ -32,6 +33,8 @@ class Class(db.Model):
     name = db.Column(db.String(150), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     students = db.relationship('Enrollment', backref='class_enrolled', lazy=True)
+    teacher = db.relationship('User', backref='classes')
+
 
 class Enrollment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +56,7 @@ def register():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']  # Get the role from the form
+        
         if User.query.filter_by(username=username).first():
             flash('Username already exists!')
         else:
@@ -62,16 +66,21 @@ def register():
                 status = 'pending'
             else:
                 status = 'approved'  # Automatically approve students
+            
             new_user = User(username=username, password=hashed_password, role=role, status=status)
             db.session.add(new_user)
             db.session.commit()
             flash('Registration successful! Your registration is pending approval.')
-            return redirect(url_for('login'))
+
+            # Do not log in the user if they are a teacher
+            if role == 'Teacher':
+                return redirect(url_for('login'))  # Redirect to the login page for teachers
+            
+            return redirect(url_for('login'))  # Redirect to login for other roles
+
     return render_template('register.html')
 
 
-
-#defaut route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -80,20 +89,28 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password, password):
+              # If the user is an admin, log them in and redirect to the admin dashboard
+            if user.role == 'Admin':
+                login_user(user)
+                return redirect(url_for('admin_dashboard'))  # Redirect to the admin route
             # Check if the user is a teacher and their status
-            if user.role == 'Teacher':
+            elif user.role == 'Teacher':
                 if user.status == 'pending':
                     flash('Your account is pending approval by an admin. Please wait for approval before logging in.')
                     return redirect(url_for('login'))
                 elif user.status == 'denied':
                     flash('Your account has been denied. Please contact admin for more information.')
                     return redirect(url_for('login'))
-            
-            # If the user is approved, log them in
-            login_user(user)
-            return redirect(url_for('dashboard'))  # Redirect to the appropriate dashboard
+                 # If the user is a teacher and approved, log them in
+                login_user(user)
+                return redirect(url_for('teacher_dashboard'))  # Redirect to the teacher dashboard
+            # Check if user is student    
+            elif user.role== 'Student':    
+                login_user(user)
+                return redirect(url_for('student_dashboard'))  # Redirect to the student dashboard
         else:
             flash('Invalid username or password!')
+    
     return render_template('login.html')
 
 
@@ -102,13 +119,12 @@ def login():
 def dashboard():
     return f'Hello, {current_user.username}! Your role is {current_user.role}. <a href="/logout">Logout</a>'
 
-
-
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('home'))
+
 
 # Role-based access control decorators
 def admin_required(f):
@@ -121,14 +137,117 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-#Admin route
-# Remove or comment out this route
-# @app.route('/admin/approve_teachers')
-# @admin_required
-# def approve_teachers():
-#     pending_teachers = User.query.filter_by(role='Teacher', status='pending').all()
-#     return render_template('approve_teachers.html', pending_teachers=pending_teachers)
+# Admin route
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    all_users = User.query.all()
+    pending_teachers = User.query.filter_by(role='Teacher', status='pending').all()
+    approved_teachers = User.query.filter_by(role='Teacher', status='approved').all()
+    students = User.query.filter_by(role='Student').all()
+    
+    return render_template('admin/admin_dashboard.html', 
+                           all_users=all_users, 
+                           pending_teachers=pending_teachers, 
+                           approved_teachers=approved_teachers, 
+                           students=students)
 
+# Teacher route
+# Function to require teacher access
+def teacher_required(f):
+    @wraps(f)  # Preserve the original function's name and docstring
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if current_user.role not in ['Admin', 'Teacher']:
+            flash('Access denied: Admins and Teachers only.')
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
+@app.route('/teacher/dashboard')
+@login_required
+@teacher_required
+def teacher_dashboard():
+    # Get all classes taught by the current teacher
+    classes = Class.query.filter_by(teacher_id=current_user.id).all()
+    return render_template('teacher/teacher_dashboard.html', classes=classes)
+
+@app.route('/teacher/create_class', methods=['POST'])
+@login_required
+@teacher_required
+def create_class():
+    class_name = request.form['class_name']
+    new_class = Class(name=class_name, teacher_id=current_user.id)
+    db.session.add(new_class)
+    db.session.commit()
+    flash('Class created successfully!')
+    return redirect(url_for('teacher_dashboard'))
+
+@app.route('/teacher/view_enrollments/<int:class_id>')
+@login_required
+@teacher_required
+def view_enrollments(class_id):
+    # Get the enrollments for the specified class
+    enrollments = Enrollment.query.filter_by(class_id=class_id).all()
+    class_name = Class.query.get(class_id).name  # Assuming you have a Class model
+    return render_template('teacher/view_enrollments.html', enrollments=enrollments, class_name=class_name)
+
+
+@app.route('/teacher/update_enrollment/<int:enrollment_id>/<action>', methods=['POST'])
+@login_required
+@teacher_required
+def update_enrollment(enrollment_id, action):
+    enrollment = Enrollment.query.get(enrollment_id)
+    if enrollment:
+        if action == 'approve':
+            enrollment.status = 'Approved'
+        elif action == 'deny':
+            enrollment.status = 'Denied'
+        db.session.commit()
+        flash(f'Enrollment has been {action}d successfully!')
+    else:
+        flash('Enrollment not found.')
+    return redirect(url_for('view_enrollments', class_id=enrollment.class_id))
+
+
+
+
+# Student route
+@app.route('/student/dashboard')
+@login_required
+def student_dashboard():
+    available_classes = Class.query.all()  # Get all available classes
+    approved_classes = Class.query.join(Enrollment).filter(Enrollment.student_id == current_user.id, Enrollment.status == 'Approved').all()  # Get approved classes for the current student
+    
+     # Create a list of dictionaries to hold class and teacher information
+    approved_classes_with_teachers = []
+    for cls in approved_classes:
+        approved_classes_with_teachers.append({
+            'class': cls,
+            'teacher_name': cls.teacher.username if cls.teacher else 'No teacher assigned'
+        })
+
+     # Get pending enrollments for the current student
+    pending_enrollments = Enrollment.query.filter_by(student_id=current_user.id, status='Pending').all()
+    pending_class_ids = {enrollment.class_id for enrollment in pending_enrollments}
+    return render_template('student/student_dashboard.html', available_classes=available_classes, approved_classes=approved_classes, pending_class_ids=pending_class_ids)
+
+@app.route('/student/enroll/<int:class_id>', methods=['POST'])
+@login_required
+def enroll_in_class(class_id):
+    # Check if the student is already enrolled
+    existing_enrollment = Enrollment.query.filter_by(student_id=current_user.id, class_id=class_id).first()
+    if existing_enrollment:
+        flash('You are already enrolled in this class.')
+    else:
+        new_enrollment = Enrollment(student_id=current_user.id, class_id=class_id, status='Pending')
+        db.session.add(new_enrollment)
+        db.session.commit()
+        flash('Enrollment request submitted successfully!')
+
+    return redirect(url_for('student_dashboard'))
+
+
+# Admin route 
 @app.route('/admin/approve_teacher/<int:user_id>')
 @admin_required
 def approve_teacher(user_id):
@@ -146,8 +265,7 @@ def approve_teacher(user_id):
         flash('User not found or not a teacher.')
     return redirect(url_for('admin_dashboard'))  # Redirect to the admin dashboard
 
-
-
+# Admin route to deny teachers
 @app.route('/admin/deny_teacher/<int:user_id>')
 @admin_required
 def deny_teacher(user_id):
@@ -162,131 +280,12 @@ def deny_teacher(user_id):
 
 
 
-def teacher_required(f):
-    @wraps(f)  # Preserve the original function's name and docstring
-    @login_required
-    def decorated_function(*args, **kwargs):
-        if current_user.role not in ['Admin', 'Teacher']:
-            flash('Access denied: Admins and Teachers only.')
-            return redirect(url_for('home'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-#view all admin
-@app.route('/admin')
-@admin_required
-def admin_dashboard():
-    all_users = User.query.all()
-    pending_teachers = User.query.filter_by(role='Teacher', status='pending').all()
-    approved_teachers = User.query.filter_by(role='Teacher', status='approved').all()
-    students = User.query.filter_by(role='Student').all()
-    
-    return render_template('admin_dashboard.html', 
-                           all_users=all_users, 
-                           pending_teachers=pending_teachers, 
-                           approved_teachers=approved_teachers, 
-                           students=students)
-
-# Teacher route
-@app.route('/teacher')
-@teacher_required
-def teacher_dashboard():
-    return 'Welcome to the Teacher Dashboard!'
-
-#view enrollments teacher
-@app.route('/teacher/enrollments')
-@login_required
-@teacher_required
-def view_enrollments():
-    classes = Class.query.filter_by(teacher_id=current_user.id).all()
-    return render_template('view_enrollments.html', classes=classes)
-
-
-@app.route('/teacher/create_class', methods=['GET', 'POST'])
-@login_required
-@teacher_required
-def create_class():
-    if request.method == 'POST':
-        class_name = request.form['class_name']
-        new_class = Class(name=class_name, teacher_id=current_user.id)
-        db.session.add(new_class)
-        db.session.commit()
-        flash('Class created successfully!')
-        return redirect(url_for('teacher_dashboard'))  # Redirect to teacher dashboard
-    return render_template('create_class.html')
-
-@app.route('/teacher/approve_enrollment/<int:enrollment_id>')
-@login_required
-@teacher_required
-def approve_enrollment(enrollment_id):
-    enrollment = Enrollment.query.get(enrollment_id)
-    if enrollment:
-        enrollment.status = 'approved'
-        db.session.commit()
-        flash('Enrollment approved.')
-    else:
-        flash('Enrollment not found.')
-    return redirect(url_for('view_enrollments'))
-
-@app.route('/teacher/deny_enrollment/<int:enrollment_id>')
-@login_required
-@teacher_required
-def deny_enrollment(enrollment_id):
-    enrollment = Enrollment.query.get(enrollment_id)
-    if enrollment:
-        enrollment.status = 'denied'
-        db.session.commit()
-        flash('Enrollment denied.')
-    else:
-        flash('Enrollment not found.')
-    return redirect(url_for('view_enrollments'))
-
-#Student route
-
-#view
-@app.route('/classes')
-@login_required
-def view_classes():
-    classes = Class.query.all()  # Get all classes
-    return render_template('view_classes.html', classes=classes)
-
-#enroll
-@app.route('/enroll/<int:class_id>', methods=['POST'])
-@login_required
-def enroll(class_id):
-    # Check if the user is a student
-    if current_user.role != 'Student':
-        flash('Only students can enroll in classes.')
-        return redirect(url_for('dashboard'))
-
-    # Check if the class exists
-    class_to_enroll = Class.query.get(class_id)
-    if not class_to_enroll:
-        flash('Class not found.')
-        return redirect(url_for('dashboard'))
-
-    # Check if the student is already enrolled
-    existing_enrollment = Enrollment.query.filter_by(student_id=current_user.id, class_id=class_id).first()
-    if existing_enrollment:
-        flash('You are already enrolled in this class.')
-        return redirect(url_for('dashboard'))
-
-    # Create a new enrollment
-    new_enrollment = Enrollment(student_id=current_user.id, class_id=class_id)
-    db.session.add(new_enrollment)
-    db.session.commit()
-    flash('Enrollment request submitted. Waiting for approval.')
-    return redirect(url_for('dashboard'))
-
-
-
-
+# Create the database and tables
 if __name__ == '__main__':
-    # Create the database and tables
     with app.app_context():
         db.create_all()
 
-         # Check if there is at least one admin
+        # Check if there is at least one admin
         admin_user = User.query.filter_by(role='Admin').first()
         if not admin_user:
             # Create a default admin user if none exists
