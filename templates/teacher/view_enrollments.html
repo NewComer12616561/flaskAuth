@@ -15,7 +15,6 @@
             <thead>
                 <tr>
                     <th>Student Name</th>
-                    <th>Email</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -24,8 +23,7 @@
                 {% for enrollment in enrollments %}
                 {% if enrollment.status == 'Pending' %}
                 <tr>
-                    <td>{{ enrollment.student.name }}</td>
-                    <td>{{ enrollment.student.email }}</td>
+                    <td>{{ enrollment.student.username }}</td>
                     <td>{{ enrollment.status }}</td>
                     <td>
                         <form action="{{ url_for('update_enrollment', enrollment_id=enrollment.id, action='approve') }}" method="POST" style="display:inline;">
@@ -46,15 +44,13 @@
             <thead>
                 <tr>
                     <th>Student Name</th>
-                    <th>Email</th>
                 </tr>
             </thead>
             <tbody>
                 {% for enrollment in enrollments %}
                 {% if enrollment.status == 'Approved' %}
                 <tr>
-                    <td>{{ enrollment.student.name }}</td>
-                    <td>{{ enrollment.student.email }}</td>
+                    <td>{{ enrollment.student.username }}</td>
                 </tr>
                 {% endif %}
                 {% endfor %}

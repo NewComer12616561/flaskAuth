@@ -2,46 +2,87 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Admin Dashboard</h1>
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mt-4">
+           
+            <h1>Welcome to the Admin Dashboard, {{ current_user.username }}!</h1>
+             <!-- Logout Form -->
+             <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm">Logout</button>
+            </form>
+        </div>
 
-    <h2>All Users</h2>
-    <ul>
-        {% for user in all_users %}
-            <li>{{ user.username }} - Role: {{ user.role }} - Status: {{ user.status }}</li>
-        {% endfor %}
-    </ul>
+        <h2>All Users</h2>
+        <table class="table table-bordered mb-4">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in all_users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.role }}</td>
+                        <td>{{ user.status }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    <h2>Pending Teachers</h2>
-    <ul>
-        {% for teacher in pending_teachers %}
-            <li>
-                {{ teacher.username }} 
-                <a href="{{ url_for('approve_teacher', user_id=teacher.id) }}">Approve</a> | 
-                <a href="{{ url_for('deny_teacher', user_id=teacher.id) }}">Deny</a>
-            </li>
-        {% endfor %}
-    </ul>
+        <h2>Pending Teachers</h2>
+        <table class="table table-bordered mb-4">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in pending_teachers %}
+                    <tr>
+                        <td>{{ teacher.username }}</td>
+                        <td>
+                            <a href="{{ url_for('approve_teacher', user_id=teacher.id) }}" class="btn btn-success btn-sm">Approve</a> 
+                            <a href="{{ url_for('deny_teacher', user_id=teacher.id) }}" class="btn btn-danger btn-sm">Deny</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    <h2>Approved Teachers</h2>
-    <ul>
-        {% for teacher in approved_teachers %}
-            <li>{{ teacher.username }}</li>
-        {% endfor %}
-    </ul>
+        <h2>Approved Teachers</h2>
+        <table class="table table-bordered mb-4">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in approved_teachers %}
+                    <tr>
+                        <td>{{ teacher.username }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    <h2>Approved Students</h2>
-    <ul>
-        {% for student in approved_students %}
-            <li>{{ student.username }}</li>
-        {% endfor %}
-    </ul>
+      
 
-      <!-- Logout Form -->
-      <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
-        <button type="submit">Logout</button>
-    </form>
+        
+    </div>
+
+    <!-- Include Bootstrap JS (optional) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

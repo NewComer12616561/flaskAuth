@@ -11,9 +11,12 @@ Loggin in as teacher wouldn't auto redirect to admin page(what would first page 
 teacher dashboard with some link to redirect to create new class, allow student into class ? 
 
 Enroll in not working as intended ->  clicking on said button in teacher page(same with student) would redirect to dashboard
-Whenever teacher done create class, would redirect to dashboard instead of classes route
+Whenever teacher done create class, would redirect to dashboard instead of classes route -fix
 classes page route from teacher would show enroll button for each class created by teacher->
 should replace enroll button with view and inside said page would have list of all student enroll ? 
 
 what's done today: create dashboard for student, teacher
 add UI for teacher, student
+add UI for admin dashboard
+
+Asked: how to implement attendance system into this mess

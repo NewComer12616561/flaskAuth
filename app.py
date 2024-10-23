@@ -27,12 +27,15 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # Role: Teacher or Student
     status = db.Column(db.String(50), default='pending')  # New status column
+     # Define relationship for enrollments
+    enrollments = db.relationship('Enrollment', back_populates='student')  # Add this line
 
 class Class(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    students = db.relationship('Enrollment', backref='class_enrolled', lazy=True)
+        # Define relationships
+    students = db.relationship('Enrollment', back_populates='class_enrolled', lazy=True)
     teacher = db.relationship('User', backref='classes')
 
 
@@ -41,6 +44,12 @@ class Enrollment(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
     status = db.Column(db.String(50), default='pending')  # Status: pending, approved, denied    
+
+       # Define relationships
+    student = db.relationship('User', back_populates='enrollments')  # Assuming User has a back_populates
+    class_enrolled = db.relationship('Class', back_populates='students')  # Use back_populates for clarity
+
+  
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -188,27 +197,32 @@ def create_class():
 def view_enrollments(class_id):
     # Get the enrollments for the specified class
     enrollments = Enrollment.query.filter_by(class_id=class_id).all()
-    class_name = Class.query.get(class_id).name  # Assuming you have a Class model
+    class_obj = db.session.get(Class, class_id)  # Use Session.get()
+    class_name = class_obj.name if class_obj else 'Class not found'  # Handle case where class is not found
+    
     return render_template('teacher/view_enrollments.html', enrollments=enrollments, class_name=class_name)
-
 
 @app.route('/teacher/update_enrollment/<int:enrollment_id>/<action>', methods=['POST'])
 @login_required
 @teacher_required
 def update_enrollment(enrollment_id, action):
-    enrollment = Enrollment.query.get(enrollment_id)
+    enrollment = db.session.get(Enrollment, enrollment_id)  # Use Session.get()
     if enrollment:
         if action == 'approve':
             enrollment.status = 'Approved'
         elif action == 'deny':
             enrollment.status = 'Denied'
-        db.session.commit()
-        flash(f'Enrollment has been {action}d successfully!')
+        
+        try:
+            db.session.commit()  # Commit the changes
+            flash(f'Enrollment has been {action}d successfully!')
+        except Exception as e:
+            db.session.rollback()  # Rollback in case of error
+            flash('An error occurred while updating the enrollment.')
+            print(f'Error: {e}')  # Print the error for debugging
     else:
         flash('Enrollment not found.')
     return redirect(url_for('view_enrollments', class_id=enrollment.class_id))
-
-
 
 
 # Student route
@@ -229,7 +243,11 @@ def student_dashboard():
      # Get pending enrollments for the current student
     pending_enrollments = Enrollment.query.filter_by(student_id=current_user.id, status='Pending').all()
     pending_class_ids = {enrollment.class_id for enrollment in pending_enrollments}
-    return render_template('student/student_dashboard.html', available_classes=available_classes, approved_classes=approved_classes, pending_class_ids=pending_class_ids)
+
+     # Create a set of approved class IDs for quick lookup
+    approved_class_ids = {cls.id for cls in approved_classes}
+
+    return render_template('student/student_dashboard.html', available_classes=available_classes, approved_classes=approved_classes, pending_class_ids=pending_class_ids,approved_class_ids=approved_class_ids)
 
 @app.route('/student/enroll/<int:class_id>', methods=['POST'])
 @login_required

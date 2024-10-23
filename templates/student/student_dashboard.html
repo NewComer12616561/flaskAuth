@@ -38,17 +38,21 @@
                         {% endif %}
                     </td>
                     <td>
-                        <form action="{{ url_for('enroll_in_class', class_id=class.id) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn btn-primary btn-sm" 
-                                {% if class.id in pending_class_ids %} disabled {% endif %}>
-                                {% if class.id in pending_class_ids %} Enrolled (Pending) {% else %} Enroll {% endif %}
-                            </button>
-                        </form>
+                        {% if class.id in approved_class_ids %}
+                            <button class="btn btn-secondary btn-sm" disabled>Already Enrolled</button>
+                        {% else %}
+                            <form action="{{ url_for('enroll_in_class', class_id=class.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    {% if class.id in pending_class_ids %} Enrolled (Pending) {% else %} Enroll {% endif %}
+                                </button>
+                            </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        
 
         <h2>Approved Classes</h2>
         <table class="table table-bordered">
@@ -62,7 +66,7 @@
                 {% for class in approved_classes %}
                 <tr>
                     <td>{{ class.name }}</td>
-                    <td>{{ class.teacher.name }}</td>
+                    <td>{{ class.teacher.username }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
