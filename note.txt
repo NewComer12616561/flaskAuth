@@ -8,15 +8,25 @@ mess up in approve/deny, now automatically approve teacher -fix
 
 Loggin in as admin wouldn't auto redirect to admin page
 Loggin in as teacher wouldn't auto redirect to admin page(what would first page be like ?) 
-teacher dashboard with some link to redirect to create new class, allow student into class ? 
+teacher dashboard with some link to redirect to create new class, allow student into class ? -done
 
 Enroll in not working as intended ->  clicking on said button in teacher page(same with student) would redirect to dashboard
 Whenever teacher done create class, would redirect to dashboard instead of classes route -fix
 classes page route from teacher would show enroll button for each class created by teacher->
-should replace enroll button with view and inside said page would have list of all student enroll ? 
+should replace enroll button with view and inside said page would have list of all student enroll ? -done
 
 what's done today: create dashboard for student, teacher
 add UI for teacher, student
 add UI for admin dashboard
 
 Asked: how to implement attendance system into this mess
+
+suggest:
+add picture for user model 
+only teacher can check attendance
+
+Try seperate route, model from app.py
+
+push api from website -> face recognition then from fr -> website for attendance
+
+November curriculum: Mon and Sat (all day- IT lab)
