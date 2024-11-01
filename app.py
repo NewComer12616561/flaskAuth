@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
@@ -48,6 +50,17 @@ class Enrollment(db.Model):
        # Define relationships
     student = db.relationship('User', back_populates='enrollments')  # Assuming User has a back_populates
     class_enrolled = db.relationship('Class', back_populates='students')  # Use back_populates for clarity
+
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(50), default='Absent')  # Status: Present or Absent
+
+    # Define relationships
+    student = db.relationship('User')
+    class_attended = db.relationship('Class')
 
   
 
@@ -224,6 +237,28 @@ def update_enrollment(enrollment_id, action):
         flash('Enrollment not found.')
     return redirect(url_for('view_enrollments', class_id=enrollment.class_id))
 
+@app.route('/teacher/mark_attendance/<int:class_id>', methods=['GET', 'POST'])
+@login_required
+@teacher_required
+def mark_attendance(class_id):
+    class_obj = Class.query.get(class_id)
+    students = Enrollment.query.filter_by(class_id=class_id, status='Approved').all()  # Get approved students
+
+    if request.method == 'POST':
+        date_str = request.form['date']  # Get the date string from the form
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()  # Convert to a date object
+
+        for student in students:
+            status = request.form.get(f'student_{student.student_id}')  # Get attendance status from the form
+            attendance_record = Attendance(student_id=student.student_id, class_id=class_id, date=date_obj, status=status)
+            db.session.add(attendance_record)
+        db.session.commit()
+        flash('Attendance marked successfully!')
+        return redirect(url_for('teacher_dashboard'))
+
+    return render_template('teacher/mark_attendance.html', class_obj=class_obj, students=students)
+
+
 
 # Student route
 @app.route('/student/dashboard')
@@ -263,6 +298,13 @@ def enroll_in_class(class_id):
         flash('Enrollment request submitted successfully!')
 
     return redirect(url_for('student_dashboard'))
+
+@app.route('/student/view_attendance')
+@login_required
+def view_attendance():
+    attendances = Attendance.query.filter_by(student_id=current_user.id).all()
+    return render_template('student/view_attendance.html', attendances=attendances)
+
 
 
 # Admin route 

@@ -9,10 +9,9 @@
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mt-4">
-           
             <h1>Welcome to the Teacher Dashboard, {{ current_user.username }}!</h1>
-             <!-- Logout Form -->
-             <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+            <!-- Logout Form -->
+            <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
                 <button type="submit" class="btn btn-danger btn-sm">Logout</button>
             </form>
         </div>
@@ -41,7 +40,10 @@
                     {% for class in classes %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             {{ class.name }} 
-                            <a href="{{ url_for('view_enrollments', class_id=class.id) }}" class="btn btn-info btn-sm">View Enrollments</a>
+                            <div>
+                                <a href="{{ url_for('view_enrollments', class_id=class.id) }}" class="btn btn-info btn-sm">View Enrollments</a>
+                                <a href="{{ url_for('mark_attendance', class_id=class.id) }}" class="btn btn-warning btn-sm ml-2">Check Attendance</a>
+                            </div>
                         </li>
                     {% endfor %}
                 </ul>
@@ -49,7 +51,6 @@
         </div>
     </div>
 
-      
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
