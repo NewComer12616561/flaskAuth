@@ -5,10 +5,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from datetime import datetime
+import face_recognition as fr
+import cv2
+import base64
 
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this to a random secret key
+
+# Ensure the "Images" and "Attendances" directories exist
+os.makedirs("static/Images", exist_ok=True)
+os.makedirs("Attendances", exist_ok=True)
 
 # Configure the SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
@@ -29,6 +36,7 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # Role: Teacher or Student
     status = db.Column(db.String(50), default='pending')  # New status column
+    image_filename = db.Column(db.String(150), nullable=True)  # Add this line to store the image filename
      # Define relationship for enrollments
     enrollments = db.relationship('Enrollment', back_populates='student')  # Add this line
 
@@ -62,6 +70,74 @@ class Attendance(db.Model):
     student = db.relationship('User')
     class_attended = db.relationship('Class')
 
+# Function to capture a new image
+def capture_new_image(image_name):
+    cap = cv2.VideoCapture(0)
+    ret, frame = cap.read()
+    if ret:
+        cv2.imwrite(f'Images/{image_name}.jpg', frame)
+    cap.release()
+
+# Function to encode faces
+def encode_faces():
+    encoded_data = {}
+    for dirpath, dnames, fnames in os.walk("./Images"):
+        for f in fnames:
+            if f.endswith(".jpg") or f.endswith(".png"):
+                face = fr.load_image_file(f"Images/{f}")
+                encoding = fr.face_encodings(face)[0]
+                encoded_data[f.split(".")[0]] = encoding
+    return encoded_data
+
+# Function to detect faces and record attendance
+def detect_faces():
+    faces = encode_faces()
+    encoded_faces = list(faces.values())
+    faces_name = list(faces.keys())
+    video = cv2.VideoCapture(0)
+    detected_faces_today = set()
+
+    with open("detected_faces.txt", "a") as f:
+        while True:
+            ret, frame = video.read()
+            if not ret:
+                break
+
+            face_locations = fr.face_locations(frame)
+            unknown_face_encodings = fr.face_encodings(frame, face_locations)
+
+            face_names = []
+            for face_encoding in unknown_face_encodings:
+                matches = fr.compare_faces(encoded_faces, face_encoding)
+                name = "Unknown"
+                if True in matches:
+                    first_match_index = matches.index(True)
+                    name = faces_name[first_match_index]
+                face_names.append(name)
+
+            now = datetime.datetime.now()
+            timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+            for (top, right, bottom, left), name in zip(face_locations, face_names):
+                if name != "Unknown" and name not in detected_faces_today:
+                    filename = f"{timestamp}_{name}.jpg"
+                    filepath = os.path.join("Attendances", filename)
+                    cv2.imwrite(filepath, frame[top:bottom, left:right])
+                    detected_faces_today.add(name)
+                    f.write(f"Attendance recorded for {name} at {timestamp}\n")
+                    print(f"Attendance recorded for {name} at {timestamp}")
+
+            for (top, right, bottom, left), name in zip(face_locations, face_names):
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                cv2.putText(frame, name, (left, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+
+            cv2.imshow('Video', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    video.release()
+    cv2.destroyAllWindows()
+
   
 
 @login_manager.user_loader
@@ -94,6 +170,10 @@ def register():
             db.session.commit()
             flash('Registration successful! Your registration is pending approval.')
 
+              # Redirect to the image capture page if the user is a student
+            if role == 'Student':
+                return redirect(url_for('capture_image', username=username))  # Redirect to capture image page
+            
             # Do not log in the user if they are a teacher
             if role == 'Teacher':
                 return redirect(url_for('login'))  # Redirect to the login page for teachers
@@ -102,6 +182,40 @@ def register():
 
     return render_template('register.html')
 
+@app.route('/capture_image/<username>', methods=['GET', 'POST'])
+def capture_image(username):
+    if request.method == 'POST':
+        # Capture the image and save it
+        capture_new_image(username)  # Use the username as the image name
+        flash('Image captured successfully! Please log in to continue.')
+        return redirect(url_for('login'))  # Redirect to the login page
+
+    return render_template('capture_image.html', username=username)  # Render the capture image page
+
+
+
+@app.route('/save_image', methods=['POST'])
+def save_image():
+    data = request.get_json()
+    image_data = data['image']
+    username = data['username']
+
+    # Process the image data
+    image_data = image_data.split(',')[1]  # Remove the data URL part
+    image_data = base64.b64decode(image_data)  # Decode the image data
+
+    # Save the image
+    image_path = f'static/Images/{username}.jpg'  # Ensure the path is correct
+    with open(image_path, 'wb') as f:
+        f.write(image_data)
+
+    # Update the user's image filename in the database
+    user = User.query.filter_by(username=username).first()
+    if user:
+        user.image_filename = f"{username}.jpg"  # Set the image filename
+        db.session.commit()  # Save changes to the database
+
+    return {'success': True}
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -111,11 +225,9 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password, password):
-              # If the user is an admin, log them in and redirect to the admin dashboard
+            login_user(user)  # Log the user in
             if user.role == 'Admin':
-                login_user(user)
-                return redirect(url_for('admin_dashboard'))  # Redirect to the admin route
-            # Check if the user is a teacher and their status
+                return redirect(url_for('admin_dashboard'))
             elif user.role == 'Teacher':
                 if user.status == 'pending':
                     flash('Your account is pending approval by an admin. Please wait for approval before logging in.')
@@ -123,17 +235,14 @@ def login():
                 elif user.status == 'denied':
                     flash('Your account has been denied. Please contact admin for more information.')
                     return redirect(url_for('login'))
-                 # If the user is a teacher and approved, log them in
-                login_user(user)
-                return redirect(url_for('teacher_dashboard'))  # Redirect to the teacher dashboard
-            # Check if user is student    
-            elif user.role== 'Student':    
-                login_user(user)
+                return redirect(url_for('teacher_dashboard'))
+            elif user.role == 'Student':
                 return redirect(url_for('student_dashboard'))  # Redirect to the student dashboard
         else:
             flash('Invalid username or password!')
     
     return render_template('login.html')
+
 
 
 @app.route('/dashboard')
@@ -258,16 +367,38 @@ def mark_attendance(class_id):
 
     return render_template('teacher/mark_attendance.html', class_obj=class_obj, students=students)
 
+@app.route('/teacher/capture_image', methods=['POST'])
+@login_required
+def teacher_capture_image():
+    if current_user.role == 'Teacher':
+        image_name = request.form['image_name']
+        capture_new_image(image_name)  # Ensure this function is defined elsewhere
+        flash('Image captured successfully!')
+    else:
+        flash('Access denied: Teachers only.')
+    return redirect(url_for('teacher_dashboard'))
+
+@app.route('/teacher/detect_faces')
+@login_required
+def start_face_detection():
+    if current_user.role == 'Teacher':
+        detect_faces()
+        flash('Face detection started!')
+    else:
+        flash('Access denied: Teachers only.')
+    return redirect(url_for('teacher_dashboard'))
 
 
-# Student route
 @app.route('/student/dashboard')
 @login_required
 def student_dashboard():
     available_classes = Class.query.all()  # Get all available classes
     approved_classes = Class.query.join(Enrollment).filter(Enrollment.student_id == current_user.id, Enrollment.status == 'Approved').all()  # Get approved classes for the current student
-    
-     # Create a list of dictionaries to hold class and teacher information
+
+    # Debugging: Check current user details
+    print(f"Current user: {current_user.username}, Image filename: {current_user.image_filename}")
+
+    # Create a list of dictionaries to hold class and teacher information
     approved_classes_with_teachers = []
     for cls in approved_classes:
         approved_classes_with_teachers.append({
@@ -275,14 +406,22 @@ def student_dashboard():
             'teacher_name': cls.teacher.username if cls.teacher else 'No teacher assigned'
         })
 
-     # Get pending enrollments for the current student
+    # Get pending enrollments for the current student
     pending_enrollments = Enrollment.query.filter_by(student_id=current_user.id, status='Pending').all()
     pending_class_ids = {enrollment.class_id for enrollment in pending_enrollments}
 
-     # Create a set of approved class IDs for quick lookup
+    # Create a set of approved class IDs for quick lookup
     approved_class_ids = {cls.id for cls in approved_classes}
 
-    return render_template('student/student_dashboard.html', available_classes=available_classes, approved_classes=approved_classes, pending_class_ids=pending_class_ids,approved_class_ids=approved_class_ids)
+    return render_template(
+        'student/student_dashboard.html',
+        available_classes=available_classes,
+        approved_classes=approved_classes,
+        pending_class_ids=pending_class_ids,
+        approved_class_ids=approved_class_ids,
+        image_filename=current_user.image_filename  # Pass the image filename to the template
+    )
+
 
 @app.route('/student/enroll/<int:class_id>', methods=['POST'])
 @login_required

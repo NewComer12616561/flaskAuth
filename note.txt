@@ -15,18 +15,20 @@ Whenever teacher done create class, would redirect to dashboard instead of class
 classes page route from teacher would show enroll button for each class created by teacher->
 should replace enroll button with view and inside said page would have list of all student enroll ? -done
 
-what's done today: create dashboard for student, teacher
+what's done :create dashboard for student, teacher
 add UI for teacher, student
 add UI for admin dashboard
+add basic attendance to teacher and student
+student can take picture of their face
 
-Asked: how to implement attendance system into this mess
-
+Asked: how to implement attendance system into this mess: push api from website -> face recognition then from fr -> website for attendance
+ToDo: face attendance
 suggest:
 add picture for user model 
 only teacher can check attendance
 
 Try seperate route, model from app.py
 
-push api from website -> face recognition then from fr -> website for attendance
+
 
 November curriculum: Mon and Sat (all day- IT lab)
